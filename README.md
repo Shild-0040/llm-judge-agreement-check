@@ -53,7 +53,7 @@ python judge_check_v2.py
 
 ## 文章
 
-完整分析过程：<发布后把文章链接贴到这里>
+完整分析过程：https://juejin.cn/post/7695725609003843647
 
 ## License
 
