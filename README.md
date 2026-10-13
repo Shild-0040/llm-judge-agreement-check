@@ -16,6 +16,7 @@ curl -L -o downloads/mtbench_human.parquet \
 curl -L -o downloads/mtbench_gpt4.parquet \
   "https://huggingface.co/api/datasets/lmsys/mt_bench_human_judgments/parquet/default/gpt4_pair/0.parquet"
 python judge_check_v2.py
+python loo_strength.py
 ```
 
 数据下载不需要 HuggingFace token。依赖只有 pandas + pyarrow，kappa 是手算的，没引 sklearn。
@@ -40,12 +41,18 @@ python judge_check_v2.py
 
 | 实力差 | 样本 | 一致率（含平局） | 排除平局 |
 |---|---|---|---|
-| 悬殊（>0.30） | 815 | 81.2% | 95.0% |
+| 悬殊（&gt;0.30） | 815 | 81.2% | 95.0% |
 | 中等（0.15~0.30） | 391 | 63.2% | 84.2% |
-| 接近（<0.15） | 406 | 59.1% | 73.1% |
+| 接近（&lt;0.15） | 406 | 59.1% | 73.1% |
 
 结论：**两个模型越接近，LLM judge 越不可信**——实力接近区间的 59.1% 已经低于人–人基线 65.54%。
 另外 463 条分歧里 338 条（73.0%）只是平局边界的分歧，真正判反方向的只有 125 条（占全量 7.75%）。
+
+分层那张表有个显而易见的质疑：胜率是用同一批数据算的，被拿来当分桶依据的那一对比较自己也在桶里，等于用答案给答案分组。所以补了一次留一法（leave-one-out）：算某一对的实力差时，把这一对自己的判决从两个模型的胜率里减掉，再重新分桶。
+
+结果是一点没动。同样 1612 个 key，三个桶的一致率和全样本完全一致（81.23% / 63.17% / 59.11%），单个 key 的实力差最大移动 0.00456、平均 0.00091，**换桶的 key 有 0 个**。原因是每个模型的胜率平均摊在 500 多场比较上，去掉一场挪不动分母。脚本是 `loo_strength.py`，结果在 `loo_result.json`。
+
+还没做的：一致率都是 raw agreement，没给置信区间，也没按 `question_id` 做聚类重采样，所以上面每个百分比的小数位不要当准数用。
 
 一个反直觉的点：gpt4 split 里 `model_b` 胜率高达 89.44%，看起来像位置偏见，但这份数据的 15 个有序模型对
 **双向都出现过的是 0 个**（弱模型固定在 a 位），所以那个数字主要是实力差异。这份数据里位置偏见的有效
